@@ -1,76 +1,149 @@
-from typing import Any, Dict, List, Literal, Optional, Union
-from pydantic import AnyHttpUrl, PostgresDsn, ValidationInfo, field_validator
-from pydantic_settings import BaseSettings
+from typing import List, Literal, Optional
+
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    PostgresDsn,
+    model_validator,
+)
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
+class JwtConfig(BaseModel):
+    """JWT configuration."""
 
-    model_config = {
-        "case_sensitive": True,
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-    }
-    # Environment
-    ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    access_secret_key: str
+    refresh_secret_key: str
+    algorithm: str = "HS256"
+    access_expire_hours: int = 1
+    refresh_expire_days: int = 7
 
-    # API
-    API_PREFIX: str = "/api"
-    # CORS
-    CORS_ORIGINS: List[Union[str, AnyHttpUrl]] = ["http://localhost:3000"]
 
-    @field_validator("CORS_ORIGINS", mode="before")
-    def assemble_cors_origins(cls, v: Union[str, List[Any]]) -> List[str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, list):
-            return [str(i) for i in v]  # Convert AnyHttpUrl or other types to strings
-        elif isinstance(v, str):
-            return [v]
-        raise ValueError(f"Invalid CORS origins: {v}")
+class PostgresConfig(BaseModel):
+    """Postgres configuration."""
 
     # Database
-    POSTGRES_SERVER: str = "localhost"
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_DB: str = "confera"
-    POSTGRES_PORT: str = "5432"
-    DATABASE_URL: Optional[PostgresDsn] = None
+    server: str
+    user: str
+    password: str
+    db: str
+    port: str
+    database_url: Optional[PostgresDsn] = None
 
-    @field_validator("DATABASE_URL", mode="before")
-    def assemble_db_connection(cls, v: Optional[str], info: ValidationInfo) -> Any:
-        if isinstance(v, str):
-            return v
-        values = info.data
-        return PostgresDsn.build(
-            scheme="postgresql",
-            username=values.get("POSTGRES_USER"),
-            password=values.get("POSTGRES_PASSWORD"),
-            host=values.get("POSTGRES_SERVER"),
-            port=int(values.get("POSTGRES_PORT")),
-            path=f"{values.get('POSTGRES_DB') or ''}",
-        )
+    @model_validator(mode="after")
+    def assemble_db_connection(self) -> "PostgresConfig":
+        """Assemble the database connection string."""
+        print(f"assemble_db_connection called with data={self}")
+        if not self.database_url:
+            self.database_url = PostgresDsn.build(
+                scheme="postgresql",
+                username=self.user,
+                password=self.password,
+                host=self.server,
+                port=int(self.port),
+                path=f"{self.db or ''}",
+            )
+        return self
 
-    # Security
-    SECRET_KEY: str
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
+class LogConfig(BaseModel):
     # Logging
-    LOG_LEVEL: Literal[
+    level: Literal[
         "TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"
     ] = "INFO"
 
-    LOG_FORMAT: str = "console"
+    format: str = "console"
 
-    @field_validator("LOG_FORMAT", mode="before")
-    def set_log_format(cls, v: str, info: ValidationInfo) -> str:
-        if v is not None:
-            return v
-        environment = info.data.get("ENVIRONMENT", "development")
-        return "json" if environment == "production" else "console"
 
-    LOG_PATH: str = "logs"
+class CorsConfig(BaseModel):
+    """CORS configuration."""
+
+    # CORS
+    origins: List[AnyHttpUrl] | str
+
+    @model_validator(mode="after")
+    def assemble_cors_origins(self) -> "CorsConfig":
+        """Assemble the CORS origins."""
+        if self.origins:
+            if isinstance(self.origins, str):
+                self.origins = self.origins.split(",")
+            elif isinstance(self.origins, list):
+                self.origins = self.origins
+        else:
+            self.origins = ["*"]
+        return self
+
+
+class ApiConfig(BaseModel):
+    """API configuration."""
+
+    prefix: str = "/api"
+    # API
+    version: str = "1.0.0"
+    name: str = "API"
+    description: str = "API for the application"
+
+
+class EnvironmentConfig(BaseModel):
+    """Environment configuration."""
+
+    env: str = "development"
+
+    @property
+    def is_dev(self) -> bool:
+        return self.env == "development" or self.env == "dev"
+
+    @property
+    def is_prod(self) -> bool:
+        return self.env == "production" or self.env == "prod"
+
+    @property
+    def is_local(self) -> bool:
+        return self.env == "local"
+
+    @property
+    def is_test(self) -> bool:
+        return self.env == "test"
+
+    @property
+    def is_staging(self) -> bool:
+        return self.env == "staging"
+
+    @property
+    def debug(self) -> bool:
+        return self.is_dev or self.is_local
+
+
+class Config(BaseSettings):
+    """Configuration for the api."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_nested_max_split=1,
+        env_nested_delimiter="_",
+    )
+
+    # Environment
+    api: ApiConfig
+    # JWT
+    jwt: JwtConfig
+    # Environment
+    environment: EnvironmentConfig
+    # Database
+    postgres: PostgresConfig
+    # Logging
+    log: LogConfig
+    # CORS
+    cors: CorsConfig
 
 
 # Load settings
-settings = Settings()
+config = Config()
+
+postgres_config = config.postgres
+print("postgres_config", config.postgres)
+jwt_config = config.jwt
+api_config = config.api
+cors_config = config.cors
+log_config = config.log
+environment_config = config.environment

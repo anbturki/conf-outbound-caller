@@ -1,37 +1,44 @@
-from datetime import datetime
 import uuid
-from sqlalchemy import UUID, Boolean, Column, DateTime, ForeignKey, Integer, String, Table
-from sqlalchemy.orm import relationship
-from app.db.base import Base
+from datetime import datetime, timezone
 
-
-user_organization = Table(
-    "user_organization",
-    Base.metadata,
-    Column("user_id", UUID, ForeignKey("users.id"), primary_key=True),
-    Column("organization_id", UUID, ForeignKey("organizations.id"), primary_key=True),
-    Column("role", String(50), default="member"),  # Role in the organization
-    Column("created_at", DateTime, default=datetime.now(datetime.UTC)),
+from sqlalchemy import (
+    UUID,
+    Boolean,
+    Column,
+    DateTime,
+    String,
 )
+
+from app.core.database import Base
+
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID, primary_key=True, default=uuid.uuid4)
-    email = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
 
-    first_name = Column(String, nullable=False)
-    last_name = Column(String, nullable=False)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
     is_email_verified = Column(Boolean, default=False)
 
-    password_reset_token = Column(String, nullable=True)
-    password_reset_token_expires_at = Column(DateTime, nullable=True)
+    active_organization_id = Column(UUID, nullable=True)
+
+    terms_accepted = Column(Boolean, default=False)
 
     last_login = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.now(datetime.UTC))
-    updated_at = Column(DateTime, default=datetime.now(datetime.UTC))
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc))
+
+    @property
+    def name(self):
+        return (
+            self.first_name + " " + self.last_name
+            if self.last_name is not None
+            else self.first_name
+        )
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, first_name={self.first_name}, last_name={self.last_name})>"

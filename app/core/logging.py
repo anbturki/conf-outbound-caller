@@ -1,12 +1,13 @@
-from datetime import datetime
 import json
-from pathlib import Path
-import sys
-from loguru import logger
-from loguru._defaults import LOGURU_FORMAT
 import logging
-import logging.config
-from app.core.config import settings
+import sys
+from datetime import datetime
+from pathlib import Path
+
+from loguru import logger
+
+from app.core.config import config
+
 
 class InterceptHandler(logging.Handler):
     """
@@ -68,11 +69,11 @@ def setup_logging() -> None:
     """
     # Remove default logger
     logger.remove()
-    
+
     # Set log level from settings
-    log_level = settings.LOG_LEVEL
+    log_level = config.log.level
     # Console handler
-    if settings.LOG_FORMAT == "console":
+    if config.log.format == "console":
         # Pretty console logging for development
         logger.add(
             sys.stdout,
@@ -82,16 +83,18 @@ def setup_logging() -> None:
         )
     else:
         # Create log directory if it doesn't exist
-        log_path = Path(settings.LOG_PATH)
+        log_path = Path(config.log.path)
         log_path.mkdir(parents=True, exist_ok=True)
-    
+
         # File handler - rotate at 10MB, keep 10 files
         logger.add(
-            f"{settings.LOG_PATH}/confera_{{time:YYYY-MM-DD}}.log",  # Use Loguru's {time} placeholder
+            f"{config.log.path}/confera_{{time:YYYY-MM-DD}}.log",  # Use Loguru's {time} placeholder
             rotation="10 MB",
             retention=10,
             compression="gz",
-            format=JsonFormatter() if settings.LOG_FORMAT == "json" else "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} - {message}",
+            format=JsonFormatter()
+            if config.log.format == "json"
+            else "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} - {message}",
             level=log_level,
         )
         # JSON logging for production
@@ -101,16 +104,16 @@ def setup_logging() -> None:
             level=log_level,
             serialize=True,
         )
-    
 
-    
     # Intercept standard library logging
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
-    
+
     # Update logger for uvicorn
     for logger_name in logging.root.manager.loggerDict:
         if logger_name.startswith("uvicorn") or logger_name.startswith("fastapi"):
             logging.getLogger(logger_name).handlers = [InterceptHandler()]
-    
+
     # Log startup info
-    logger.info(f"Logging configured. Environment: {settings.ENVIRONMENT}, Log level: {log_level}")
+    logger.info(
+        f"Logging configured. Environment: {config.environment.env}, Log level: {log_level}"
+    )
