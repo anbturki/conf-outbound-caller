@@ -15,8 +15,8 @@ class JwtConfig(BaseModel):
     access_secret_key: str
     refresh_secret_key: str
     algorithm: str = "HS256"
-    access_expire_hours: int = 1
-    refresh_expire_days: int = 7
+    access_expiration: str = "1h"
+    refresh_expiration: str = "7d"
 
 
 class PostgresConfig(BaseModel):
@@ -55,6 +55,14 @@ class LogConfig(BaseModel):
     format: str = "console"
 
 
+class LivekitConfig(BaseModel):
+    """Livekit configuration."""
+
+    url: str
+    api_key: str
+    api_secret: str
+
+
 class CorsConfig(BaseModel):
     """CORS configuration."""
 
@@ -74,20 +82,19 @@ class CorsConfig(BaseModel):
         return self
 
 
-class ApiConfig(BaseModel):
-    """API configuration."""
+class MinioConfig(BaseModel):
+    """Minio configuration."""
 
-    prefix: str = "/api"
-    # API
-    version: str = "1.0.0"
-    name: str = "API"
-    description: str = "API for the application"
+    endpoint: str
+    access_key: str
+    secret_key: str
+    bucket_name: str = "confera"
 
 
 class EnvironmentConfig(BaseModel):
     """Environment configuration."""
 
-    env: str = "development"
+    env: str
 
     @property
     def is_dev(self) -> bool:
@@ -114,6 +121,38 @@ class EnvironmentConfig(BaseModel):
         return self.is_dev or self.is_local
 
 
+class ApiConfig(BaseModel):
+    """API configuration."""
+
+    prefix: str = "/api"
+    # API
+    version: str = "1.0.0"
+    name: str = "API"
+    description: str = "API for the application"
+
+    debug: Optional[bool] = None
+
+    # Environment
+    env: Literal["development", "production", "local", "test", "staging"]
+
+    @property
+    def debug_enabled(self) -> bool:
+        # if debug is explicitly set, give it priority
+        print(f"debug: {self.debug}")
+        if self.debug is not None:
+            return self.debug
+
+        return self.env in ["development", "local", "test", "staging"]
+
+    @property
+    def is_prod(self) -> bool:
+        return self.env == "production"
+
+    @property
+    def is_dev(self) -> bool:
+        return self.env == "development"
+
+
 class Config(BaseSettings):
     """Configuration for the api."""
 
@@ -123,12 +162,23 @@ class Config(BaseSettings):
         env_nested_delimiter="_",
     )
 
+    # Livekit
+    livekit: LivekitConfig
+
+    # LLMs
+    openai_api_key: str
+
+    # ChromaDB
+    chromadb_host: str
+    chromadb_port: int
+
+    # Minio
+    minio: MinioConfig
+
     # Environment
     api: ApiConfig
     # JWT
     jwt: JwtConfig
-    # Environment
-    environment: EnvironmentConfig
     # Database
     postgres: PostgresConfig
     # Logging
@@ -146,4 +196,4 @@ jwt_config = config.jwt
 api_config = config.api
 cors_config = config.cors
 log_config = config.log
-environment_config = config.environment
+minio_config = config.minio

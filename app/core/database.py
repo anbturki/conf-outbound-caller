@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.config import environment_config, postgres_config
+from app.core.config import api_config, postgres_config
 
 Base = declarative_base()
 
@@ -18,7 +18,7 @@ print("postgres_config.database_url", postgres_config.database_url)
 engine = create_engine(
     db_url,
     pool_pre_ping=True,
-    echo=environment_config.debug,
+    echo=api_config.debug_enabled,
     pool_size=5,
     max_overflow=10,
     pool_timeout=30,

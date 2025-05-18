@@ -9,8 +9,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from loguru import logger
 
-from app.core.exceptions import AppException
-from app.schemas.responses import ErrorResponse
+from app.common.schemas.error_responses import ErrorResponse
+from app.core.exceptions import AppException, ValidationException
 
 
 async def app_exception_handler(_: Request, exc: AppException):
@@ -99,19 +99,7 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError):
         )
 
         # Format the error detail
-        error_details[field_name] = {"code": error_code, "message": error_msg}
+        error_details[field_name or "body"] = {"code": error_code, "message": error_msg}
 
     # Create standardized error response
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content=ErrorResponse(
-            success=False,
-            code="INVALID_INPUT",
-            message="Validation error",
-            statusCode=status.HTTP_400_BAD_REQUEST,
-            error={
-                "message": "The provided data didn't pass validation",
-                "details": error_details,
-            },
-        ).model_dump(),
-    )
+    raise ValidationException(field_errors=error_details)

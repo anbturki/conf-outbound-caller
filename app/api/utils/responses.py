@@ -2,15 +2,61 @@
 Utils for responses
 """
 
-from typing import Any, Dict, List, Optional, TypeVar
+from math import ceil
+from typing import Any, List, Optional, Type, TypeVar
 
 from fastapi import status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, create_model
 
-from app.schemas.responses import GenericResponse, MessageResponse
+from app.common.schemas.success_responses import (
+    GenericResponse,
+    MessageResponse,
+    PagedResponse,
+    PaginationMeta,
+)
+from app.core.database import Base
 
 T = TypeVar("T")
+ModelType = TypeVar("ModelType", bound=BaseModel)
+
+
+def serialize_model(data: Any) -> dict:
+    """Serialize a Pydantic model to a dictionary."""
+    return data.model_dump(mode="json", by_alias=True)
+
+
+def is_pydantic_model(data: Any) -> bool:
+    """Check if the data is a Pydantic model."""
+    return isinstance(data, BaseModel)
+
+
+def is_sqlalchemy_model(data: Any) -> bool:
+    """Check if the data is a SQLAlchemy model."""
+    return isinstance(data, Base)
+
+
+def create_response(
+    data: Optional[Any] = None,
+    status_code: int = status.HTTP_200_OK,
+    message: str = "Operation successful",
+    response_model: Type[ModelType] = None,
+) -> JSONResponse:
+    """Create a response from a model."""
+
+    if response_model:
+        data = response_model.model_validate(data)
+
+    response = GenericResponse(
+        success=True,
+        message=message,
+        data=data,
+    )
+
+    return JSONResponse(
+        status_code=status_code,
+        content=serialize_model(response),
+    )
 
 
 # Function to create response models dynamically
@@ -58,54 +104,31 @@ def create_list_response_model(name: str, item_type: Any) -> type:
 def success_response(
     data: Optional[Any] = None,
     message: str = "Operation successful",
-    status_code: int = status.HTTP_200_OK,
+    response_model: Type[ModelType] = None,
 ) -> JSONResponse:
     """Create a standardized success response."""
-    response = GenericResponse(
-        success=True,
-        message=message,
-        data=data,
-    )
-    return JSONResponse(
-        status_code=status_code,
-        content=response.model_dump(exclude_none=True),
-    )
+    return create_response(data, status.HTTP_200_OK, message, response_model)
 
 
 def created_response(
     data: Optional[Any] = None,
     message: str = "Operation successful",
-    status_code: int = status.HTTP_201_CREATED,
+    response_model: Type[ModelType] = None,
 ) -> JSONResponse:
     """Create a standardized created response."""
-    response = GenericResponse(
-        success=True,
-        message=message,
-        data=data,
-    )
-    return JSONResponse(
-        status_code=status_code,
-        content=response.model_dump(exclude_none=True),
+    return create_response(
+        data, status.HTTP_201_CREATED, message, response_model=response_model
     )
 
 
 def message_response(
-    message: str, status_code: int = status.HTTP_200_OK
+    message: str,
+    status_code: int = status.HTTP_200_OK,
 ) -> JSONResponse:
-    """
-    Create a message-only response.
-
-    Args:
-        message: Response message
-        status_code: HTTP status code
-
-    Returns:
-        JSONResponse with standardized format
-    """
     response = MessageResponse(success=True, message=message)
     return JSONResponse(
         status_code=status_code,
-        content=response.model_dump(exclude_none=True),
+        content=serialize_model(response),
     )
 
 
@@ -113,31 +136,27 @@ def paginated_response(
     items: List[T],
     total: int,
     page: int,
-    page_size: int,
+    limit: int,
     message: str = "Items retrieved successfully",
-) -> Dict[str, Any]:
-    """
-    Create a paginated response.
+    response_model: Type[ModelType] = None,
+) -> JSONResponse:
+    total_pages = ceil(total / limit)
 
-    Args:
-        items: List of items
-        total: Total number of items
-        page: Current page number
-        page_size: Number of items per page
-        message: Success message
+    # if it is pydantic or sqlalchemy model, convert to dict
+    if items and is_sqlalchemy_model(items[0]) and response_model:
+        items = [response_model.model_validate(item) for item in items]
 
-    Returns:
-        Dictionary with paginated response format
-    """
-    pages = (total + page_size - 1) // page_size if page_size > 0 else 0
-
-    response = GenericResponse(
-        success=True,
+    response = PagedResponse(
         message=message,
         data=items,
-        meta={"total": total, "page": page, "page_size": page_size, "pages": pages},
+        meta=PaginationMeta(
+            total=total,
+            page=page,
+            limit=limit,
+            pages=total_pages,
+        ),
     )
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content=response.model_dump(exclude_none=True),
+        content=serialize_model(response),
     )

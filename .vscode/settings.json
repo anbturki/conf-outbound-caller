@@ -1,11 +1,16 @@
 {
   "cSpell.words": [
     "autoflush",
+    "chromadb",
     "confera",
+    "dotenv",
     "levelname",
     "levelno",
-    "sessionmaker",
-    "loguru"
+    "livekit",
+    "loguru",
+    "onupdate",
+    "PGUUID",
+    "sessionmaker"
   ],
   "[python]": {
     "editor.formatOnSave": true,

@@ -5,13 +5,16 @@ Dependencies for the API
 from typing import Annotated
 
 from fastapi import Depends, Query
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from app.api.resources.user.models.user import User
+from app.common.schemas.dtos import CurrentUser
 from app.core.database import get_db
 from app.core.exceptions import AuthenticationException
-from app.core.security import decode_access_token, oauth2_scheme
-from app.models.user import User
-from app.schemas.auth import AuthenticatedUser
+from app.core.security.tokens import decode_access_token
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 class PaginationParams:
@@ -32,15 +35,17 @@ class PaginationParams:
 def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     db: Annotated[Session, Depends(get_db)],
-) -> AuthenticatedUser:
+) -> CurrentUser:
     payload = decode_access_token(token)
     user = db.query(User).filter(User.id == payload.sub).first()
+
     if not user:
-        raise AuthenticationException(message="User not found")
-    return AuthenticatedUser(
-        id=str(user.id),
+        raise AuthenticationException()
+
+    return CurrentUser(
+        id=user.id,
         email=user.email,
         name=user.name,
-        last_login=user.last_login.isoformat(),
-        active_organization_id=user.active_organization_id,
+        last_login=user.last_login,
+        org_id=user.org_id,
     )

@@ -13,19 +13,27 @@ services:
     networks:
       - confera-network
 
-
-  redis:
-    image: redis:7-alpine
-    container_name: confera-redis
+  minio:
+    image: quay.io/minio/minio
+    container_name: confera-minio
     ports:
-      - "6379:6379"
+      - "9000:9000"
+      - "9001:9001"
     networks:
-      - confera-network
-
-
+      - confera-network 
+    volumes:
+      - confera-minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=confera
+      - MINIO_ROOT_PASSWORD=confera_password
+    command: server /data --console-address ":9001"
+    
 networks:
   confera-network:
     driver: bridge
 
 volumes:
   confera-postgres-data:
+  confera-minio-data:
+  confera-weaviate-data:
+  confera-redis-data:

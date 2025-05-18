@@ -2,32 +2,11 @@
 Exceptions for the application
 """
 
-from enum import Enum
 from typing import Any, Dict, Optional, Union
 
 from fastapi import HTTPException, status
 
-
-class ErrorCode(Enum):
-    """
-    Error codes for the application
-    """
-
-    INVALID_INPUT = "INVALID_INPUT"
-    AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR"
-    PERMISSION_DENIED = "PERMISSION_DENIED"
-    RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND"
-    RESOURCE_EXISTS = "RESOURCE_EXISTS"
-    BAD_REQUEST = "BAD_REQUEST"
-    INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
-    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
-    TOO_MANY_REQUESTS = "TOO_MANY_REQUESTS"
-
-    def __str__(self):
-        return self.value
-
-    def __repr__(self):
-        return self.value
+from app.common.schemas.error_responses import ErrorCode
 
 
 class AppException(HTTPException):
@@ -59,9 +38,12 @@ class ValidationException(AppException):
         message: str = "Invalid input",
         field_errors: Optional[Dict[str, Dict[str, str]]] = None,
     ):
-        error_details = {"message": message, "details": field_errors or {}}
+        error_details = {
+            "message": "The provided data didn't pass validation",
+            "details": field_errors or {},
+        }
         super().__init__(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             error_code=ErrorCode.INVALID_INPUT,
             message=message,
             error_details=error_details,

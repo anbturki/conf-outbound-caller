@@ -115,5 +115,5 @@ def setup_logging() -> None:
 
     # Log startup info
     logger.info(
-        f"Logging configured. Environment: {config.environment.env}, Log level: {log_level}"
+        f"Logging configured. Environment: {config.api.env}, Log level: {log_level}"
     )
