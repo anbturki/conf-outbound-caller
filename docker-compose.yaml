@@ -12,7 +12,6 @@ services:
       - confera-postgres-data:/var/lib/postgresql/data
     networks:
       - confera-network
-
   minio:
     image: quay.io/minio/minio
     container_name: confera-minio
@@ -27,7 +26,25 @@ services:
       - MINIO_ROOT_USER=confera
       - MINIO_ROOT_PASSWORD=confera_password
     command: server /data --console-address ":9001"
-    
+  confera_redis_mq:
+    image: redis:7
+    container_name: confera-redis-mq
+    ports:
+      - "6379:6379"
+    volumes:
+      - confera-redis-mq-data:/data
+    networks:
+      - confera-network
+  confera_redis_cache:
+    image: redis:7
+    container_name: confera-redis-cache
+    ports:
+      - "6380:6379"
+    volumes:
+      - confera-redis-cache-data:/data
+    networks:
+      - confera-network
+
 networks:
   confera-network:
     driver: bridge
@@ -36,4 +53,5 @@ volumes:
   confera-postgres-data:
   confera-minio-data:
   confera-weaviate-data:
-  confera-redis-data:
+  confera-redis-mq-data:
+  confera-redis-cache-data:
