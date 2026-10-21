@@ -22,10 +22,6 @@ dev = [
 [tool.uv]
 package = false
 
+
 [tool.uv.workspace]
-members = [
-    "packages/platform",
-    "packages/shared",
-    "packages/worker",
-    "packages/voip-worker"
-]
+members = ["shared", "platform", "voip-worker"]

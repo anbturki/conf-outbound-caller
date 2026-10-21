@@ -26,6 +26,7 @@ services:
       - MINIO_ROOT_USER=confera
       - MINIO_ROOT_PASSWORD=confera_password
     command: server /data --console-address ":9001"
+
   confera_redis_mq:
     image: redis:7
     container_name: confera-redis-mq
@@ -35,6 +36,7 @@ services:
       - confera-redis-mq-data:/data
     networks:
       - confera-network
+
   confera_redis_cache:
     image: redis:7
     container_name: confera-redis-cache

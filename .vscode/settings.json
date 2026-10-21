@@ -3,14 +3,17 @@
     "autoflush",
     "chromadb",
     "confera",
+    "deepgram",
     "dotenv",
+    "dtos",
     "levelname",
     "levelno",
     "livekit",
     "loguru",
     "onupdate",
     "PGUUID",
-    "sessionmaker"
+    "sessionmaker",
+    "silero"
   ],
   "[python]": {
     "editor.formatOnSave": true,
